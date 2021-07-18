@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 )
 
@@ -44,7 +45,7 @@ func configurarServidor() {
 	configurarRotas()
 
 	fmt.Println("Servidor rodando na porta 1337")
-	http.ListenAndServe(":1337", nil)
+	log.Fatal(http.ListenAndServe(":1337", nil))
 }
 
 func main() {
