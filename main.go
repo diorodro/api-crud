@@ -6,6 +6,8 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"regexp"
+	"strconv"
 )
 
 type Livro struct {
@@ -45,8 +47,6 @@ func rotaPrincipal(w http.ResponseWriter, r *http.Request) {
 
 func listarLivros(w http.ResponseWriter, r *http.Request) {
 
-	//
-
 	w.Header().Set("Content-Type", "application/json")
 	encoder := json.NewEncoder(w)
 	encoder.Encode(Livros)
@@ -54,6 +54,7 @@ func listarLivros(w http.ResponseWriter, r *http.Request) {
 
 func cadastrarLivro(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
 
 	var livro Livro
 
@@ -85,9 +86,43 @@ func rotearLivros(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func buscarLivros(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	caminho := r.URL.Path
+	zp := regexp.MustCompile(` */ *`)
+	reqNumId := zp.Split(caminho, -1)
+
+	numId, err := strconv.Atoi(reqNumId[2])
+
+	if err != nil {
+		fmt.Println(err.Error())
+	}
+
+	if numId <= len(Livros) && numId > 0 {
+		numId--
+		w.WriteHeader(http.StatusFound)
+
+		encoder := json.NewEncoder(w)
+		encoder.Encode(Livros[numId])
+
+		return
+
+	} else {
+		w.WriteHeader(http.StatusNotFound)
+
+		encoder := json.NewEncoder(w)
+		encoder.Encode("ERROR: id not found!")
+
+		return
+	}
+}
+
 func configurarRotas() {
 	http.HandleFunc("/", rotaPrincipal)
 	http.HandleFunc("/livros", rotearLivros)
+
+	http.HandleFunc("/livros/", buscarLivros)
 }
 
 func main() {
