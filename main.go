@@ -2,12 +2,14 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"regexp"
 	"strconv"
+	"strings"
 )
 
 type Livro struct {
@@ -79,14 +81,25 @@ func cadastrarLivro(w http.ResponseWriter, r *http.Request) {
 
 func rotearLivros(w http.ResponseWriter, r *http.Request) {
 
-	if r.Method == "GET" {
-		listarLivros(w, r)
-	} else if r.Method == "POST" {
-		cadastrarLivro(w, r)
+	partes := strings.Split(r.URL.Path, "/")
+
+	switch {
+	case len(partes) < 3:
+		if r.Method == "GET" {
+			listarLivros(w, r)
+		} else if r.Method == "POST" {
+			cadastrarLivro(w, r)
+		}
+	default:
+		if r.Method == "GET" {
+			buscarLivros(w, r)
+		} else if r.Method == "DELETE" {
+			excluirLivro(w, r)
+		}
 	}
 }
 
-func buscarLivros(w http.ResponseWriter, r *http.Request) {
+func buscarLivros(w http.ResponseWriter, r *http.Request) (*Livro, error) {
 	w.Header().Set("Content-Type", "application/json")
 
 	caminho := r.URL.Path
@@ -96,7 +109,7 @@ func buscarLivros(w http.ResponseWriter, r *http.Request) {
 	numId, err := strconv.Atoi(reqNumId[2])
 
 	if err != nil {
-		fmt.Println(err.Error())
+		return nil, err
 	}
 
 	if numId <= len(Livros) && numId > 0 {
@@ -106,7 +119,7 @@ func buscarLivros(w http.ResponseWriter, r *http.Request) {
 		encoder := json.NewEncoder(w)
 		encoder.Encode(Livros[numId])
 
-		return
+		return &Livros[numId], nil
 
 	} else {
 		w.WriteHeader(http.StatusNotFound)
@@ -114,15 +127,33 @@ func buscarLivros(w http.ResponseWriter, r *http.Request) {
 		encoder := json.NewEncoder(w)
 		encoder.Encode("ERROR: id not found!")
 
-		return
+		err := errors.New("Id Invalido")
+
+		return nil, err
 	}
+}
+
+func excluirLivro(w http.ResponseWriter, r *http.Request) bool {
+	livro, err := buscarLivros(w, r)
+	// json.NewEncoder(os.Stdout).Encode(livro)
+
+	numID := livro.Id
+
+	if err != nil {
+		return false
+	}
+	Livros[numID] = Livros[len(Livros)-1]
+	Livros[len(Livros)-1] = Livro{}
+	Livros = Livros[:len(Livros)-1]
+
+	return true
 }
 
 func configurarRotas() {
 	http.HandleFunc("/", rotaPrincipal)
 	http.HandleFunc("/livros", rotearLivros)
 
-	http.HandleFunc("/livros/", buscarLivros)
+	http.HandleFunc("/livros/", rotearLivros)
 }
 
 func main() {
